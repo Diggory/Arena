@@ -12,12 +12,15 @@ import Yaap
 
 
 public enum SPMPlaygroundError: LocalizedError {
+    case invalidPath(String)
     case missingDependency
     case pathExists(String)
     case noLibrariesFound
 
     public var errorDescription: String? {
         switch self {
+            case .invalidPath(let path):
+                return "'\(path)' is not a valid path"
             case .missingDependency:
                 return "provide at least one dependency via the -d parameter"
             case .pathExists(let path):
@@ -65,10 +68,43 @@ public class SPMPlaygroundCommand {
 
 extension SPMPlaygroundCommand: Command {
     public func run(outputStream: inout TextOutputStream, errorStream: inout TextOutputStream) throws {
-        try createPlayground(projectName: projectName, dependencies: dependencies, libNames: libNames, platform: platform, outputPath: outputPath, force: force, outputStream: &outputStream, errorStream: &errorStream)
+        try createPlayground(
+            projectName: projectName,
+            dependencies: dependencies,
+            libNames: libNames,
+            platform: platform,
+            outputPath: outputPath,
+            force: force,
+            outputStream: &outputStream,
+            errorStream: &errorStream
+        )
     }
 }
 
+
+public func createPlayground(
+    projectName: String = "SPM-Playground",
+    dependencies: [Dependency],
+    libNames: [String] = [],
+    platform: Platform = .macos,
+    outputPath: String,
+    force: Bool = false,
+    outputStream: inout TextOutputStream,
+    errorStream: inout TextOutputStream) throws {
+    guard let path = Path(outputPath) else {
+        throw SPMPlaygroundError.invalidPath(outputPath)
+    }
+    try createPlayground(
+        projectName: projectName,
+        dependencies: dependencies,
+        libNames: libNames,
+        platform: platform,
+        outputPath: path,
+        force: force,
+        outputStream: &outputStream,
+        errorStream: &errorStream
+    )
+}
 
 public func createPlayground(
     projectName: String = "SPM-Playground",
