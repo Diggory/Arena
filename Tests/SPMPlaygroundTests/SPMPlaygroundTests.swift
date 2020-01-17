@@ -8,7 +8,6 @@ import XCTest
 final class SPMPlaygroundTests: XCTestCase {
     func test_loadManifest() throws {
         let p = checkoutsDirectory/"swift-package-manager"
-        print(p)
         let package = AbsolutePath(p.string)
         let manifest = try ManifestLoader.loadManifest(packagePath: package, swiftCompiler: swiftCompiler)
         XCTAssertEqual(manifest.name, "SwiftPM")

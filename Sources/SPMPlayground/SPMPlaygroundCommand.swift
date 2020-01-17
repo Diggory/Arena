@@ -65,7 +65,7 @@ public class SPMPlaygroundCommand {
 
 extension SPMPlaygroundCommand: Command {
     public func run(outputStream: inout TextOutputStream, errorStream: inout TextOutputStream) throws {
-        try createPlayground(projectName: projectName, dependencies: dependencies, libNames: libNames, platform: platform, outputPath: outputPath, force: force)
+        try createPlayground(projectName: projectName, dependencies: dependencies, libNames: libNames, platform: platform, outputPath: outputPath, force: force, outputStream: &outputStream, errorStream: &errorStream)
     }
 }
 
@@ -76,7 +76,9 @@ public func createPlayground(
     libNames: [String] = [],
     platform: Platform = .macos,
     outputPath: Path,
-    force: Bool = false) throws {
+    force: Bool = false,
+    outputStream: inout TextOutputStream,
+    errorStream: inout TextOutputStream) throws {
 
     guard !dependencies.isEmpty else {
         throw SPMPlaygroundError.missingDependency
@@ -107,7 +109,7 @@ public func createPlayground(
     }
 
     do {
-        print("🔧  resolving package dependencies")
+        outputStream.write("🔧  resolving package dependencies\n")
         try shellOut(to: ShellOutCommand(string: "swift package resolve"), at: projectPath)
     }
 
@@ -118,7 +120,7 @@ public func createPlayground(
             .compactMap { $0.path ?? $0.checkoutDir(projectDir: projectPath) }
             .flatMap { try libraryNames(for: $0) }
         if libs.isEmpty { throw SPMPlaygroundError.noLibrariesFound }
-        print("📔  libraries found: \(libs.joined(separator: ", "))")
+        outputStream.write("📔  libraries found: \(libs.joined(separator: ", "))\n")
     }
 
     // update Package.swift targets
@@ -167,7 +169,7 @@ public func createPlayground(
             """.write(to: playgroundPath/"contents.xcplayground")
     }
 
-    print("✅  created project in folder '\(projectPath.relative(to: Path.cwd))'")
+    outputStream.write("✅  created project in folder '\(projectPath.relative(to: Path.cwd))'\n")
     try shellOut(to: .openFile(at: xcworkspacePath))
 }
 
