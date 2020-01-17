@@ -16,7 +16,7 @@ public struct Dependency: Equatable {
     let url: URL
     let requirement: Requirement
 
-    init(url: URL, requirement: Requirement) {
+    public init(url: URL, requirement: Requirement) {
         precondition(url.scheme != nil, "scheme must not be nil (i.e. one of https, http, file)")
         self.url = url
         self.requirement = requirement
