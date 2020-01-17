@@ -32,7 +32,8 @@ public enum SPMPlaygroundError: LocalizedError {
 public class SPMPlaygroundCommand {
     public let name = "spm-playground"
     public let documentation = "Creates an Xcode project with a Playground and one or more SPM libraries imported and ready for use."
-    let help = Help()
+
+    // Custom options
 
     @Option(name: "name", shorthand: "n", documentation: "Name of directory and Xcode project")
     var projectName = "SPM-Playground"
@@ -46,29 +47,17 @@ public class SPMPlaygroundCommand {
     @Option(shorthand: "p", documentation: "Platform for Playground (one of 'macos', 'ios', 'tvos')")
     var platform: Platform = .macos
 
-    let version = Version(SPMPlaygroundVersion)
-
     @Option(shorthand: "f", documentation: "Overwrite existing file/directory")
     var force = false
 
     @Option(name: "outputdir", shorthand: "o", documentation: "Directory where project folder should be saved")
     var outputPath = Path.cwd
 
-    var targetName: String { projectName }
+    // Built-in flags
 
-    var projectPath: Path { outputPath/projectName }
+    let version = Version(SPMPlaygroundVersion)
 
-    var xcodeprojPath: Path {
-        projectPath/"\(projectName).xcodeproj"
-    }
-
-    var xcworkspacePath: Path {
-        projectPath/"\(projectName).xcworkspace"
-    }
-
-    var playgroundPath: Path {
-        projectPath/"MyPlayground.playground"
-    }
+    let help = Help()
 
     public init() {}
 }
@@ -76,92 +65,109 @@ public class SPMPlaygroundCommand {
 
 extension SPMPlaygroundCommand: Command {
     public func run(outputStream: inout TextOutputStream, errorStream: inout TextOutputStream) throws {
-        guard !dependencies.isEmpty else {
-            throw SPMPlaygroundError.missingDependency
-        }
-
-        if force && projectPath.exists {
-            try projectPath.delete()
-        }
-        guard !projectPath.exists else {
-            throw SPMPlaygroundError.pathExists(projectPath.basename())
-        }
-
-        // create package
-        do {
-            try projectPath.mkdir()
-            try shellOut(to: .createSwiftPackage(withType: .library), at: projectPath)
-        }
-
-        // update Package.swift dependencies
-        do {
-            let packagePath = projectPath/"Package.swift"
-            let packageDescription = try String(contentsOf: packagePath)
-            let depsClause = dependencies.map { "    " + $0.packageClause }.joined(separator: ",\n")
-            let updatedDeps = "package.dependencies = [\n\(depsClause)\n]"
-            try [packageDescription, updatedDeps].joined(separator: "\n").write(to: packagePath)
-        }
-
-        do {
-            print("🔧  resolving package dependencies")
-            try shellOut(to: ShellOutCommand(string: "swift package resolve"), at: projectPath)
-        }
-
-        let libs: [String]
-        do {
-            // find libraries
-            libs = try dependencies
-                .compactMap { $0.path ?? $0.checkoutDir(projectDir: projectPath) }
-                .flatMap { try libraryNames(for: $0) }
-            if libs.isEmpty { throw SPMPlaygroundError.noLibrariesFound }
-            print("📔  libraries found: \(libs.joined(separator: ", "))")
-        }
-
-        // update Package.swift targets
-        do {
-            let packagePath = projectPath/"Package.swift"
-            let packageDescription = try String(contentsOf: packagePath)
-            let libsClause = libs.map { "\"\($0)\"" }.joined(separator: ", ")
-            let updatedTgts =  "package.targets = [.target(name: \"\(targetName)\", dependencies: [\(libsClause)])]"
-            try [packageDescription, updatedTgts].joined(separator: "\n").write(to: packagePath)
-        }
-
-        // generate xcodeproj
-        try shellOut(to: .generateSwiftPackageXcodeProject(), at: projectPath)
-
-        // create workspace
-        do {
-            try xcworkspacePath.mkdir()
-            try """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <Workspace
-                version = "1.0">
-                <FileRef
-                location = "group:MyPlayground.playground">
-                </FileRef>
-                <FileRef
-                location = "container:\(xcodeprojPath.basename())">
-                </FileRef>
-                </Workspace>
-                """.write(to: xcworkspacePath/"contents.xcworkspacedata")
-        }
-
-        // add playground
-        do {
-            try playgroundPath.mkdir()
-            let libsToImport = !libNames.isEmpty ? libNames : libs
-            let importClauses = libsToImport.map { "import \($0)" }.joined(separator: "\n") + "\n"
-            try importClauses.write(to: playgroundPath/"Contents.swift")
-            try """
-                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-                <playground version='5.0' target-platform='\(platform)'>
-                <timeline fileName='timeline.xctimeline'/>
-                </playground>
-                """.write(to: playgroundPath/"contents.xcplayground")
-        }
-
-        print("✅  created project in folder '\(projectPath.relative(to: Path.cwd))'")
-        try shellOut(to: .openFile(at: xcworkspacePath))
+        try createPlayground(projectName: projectName, dependencies: dependencies, libNames: libNames, platform: platform, outputPath: outputPath, force: force)
     }
+}
+
+
+public func createPlayground(
+    projectName: String = "SPM-Playground",
+    dependencies: [Dependency],
+    libNames: [String] = [],
+    platform: Platform = .macos,
+    outputPath: Path,
+    force: Bool = false) throws {
+
+    guard !dependencies.isEmpty else {
+        throw SPMPlaygroundError.missingDependency
+    }
+
+    let projectPath = outputPath/projectName
+
+    if force && projectPath.exists {
+        try projectPath.delete()
+    }
+    guard !projectPath.exists else {
+        throw SPMPlaygroundError.pathExists(projectPath.basename())
+    }
+
+    // create package
+    do {
+        try projectPath.mkdir()
+        try shellOut(to: .createSwiftPackage(withType: .library), at: projectPath)
+    }
+
+    // update Package.swift dependencies
+    do {
+        let packagePath = projectPath/"Package.swift"
+        let packageDescription = try String(contentsOf: packagePath)
+        let depsClause = dependencies.map { "    " + $0.packageClause }.joined(separator: ",\n")
+        let updatedDeps = "package.dependencies = [\n\(depsClause)\n]"
+        try [packageDescription, updatedDeps].joined(separator: "\n").write(to: packagePath)
+    }
+
+    do {
+        print("🔧  resolving package dependencies")
+        try shellOut(to: ShellOutCommand(string: "swift package resolve"), at: projectPath)
+    }
+
+    let libs: [String]
+    do {
+        // find libraries
+        libs = try dependencies
+            .compactMap { $0.path ?? $0.checkoutDir(projectDir: projectPath) }
+            .flatMap { try libraryNames(for: $0) }
+        if libs.isEmpty { throw SPMPlaygroundError.noLibrariesFound }
+        print("📔  libraries found: \(libs.joined(separator: ", "))")
+    }
+
+    // update Package.swift targets
+    do {
+        let packagePath = projectPath/"Package.swift"
+        let packageDescription = try String(contentsOf: packagePath)
+        let libsClause = libs.map { "\"\($0)\"" }.joined(separator: ", ")
+        let updatedTgts =  "package.targets = [.target(name: \"\(projectName)\", dependencies: [\(libsClause)])]"
+        try [packageDescription, updatedTgts].joined(separator: "\n").write(to: packagePath)
+    }
+
+    // generate xcodeproj
+    try shellOut(to: .generateSwiftPackageXcodeProject(), at: projectPath)
+
+    // create workspace
+    let xcworkspacePath = projectPath/"\(projectName).xcworkspace"
+    do {
+        let xcodeprojPath = projectPath/"\(projectName).xcodeproj"
+        try xcworkspacePath.mkdir()
+        try """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Workspace
+            version = "1.0">
+            <FileRef
+            location = "group:MyPlayground.playground">
+            </FileRef>
+            <FileRef
+            location = "container:\(xcodeprojPath.basename())">
+            </FileRef>
+            </Workspace>
+            """.write(to: xcworkspacePath/"contents.xcworkspacedata")
+    }
+
+    // add playground
+    do {
+        let playgroundPath = projectPath/"MyPlayground.playground"
+        try playgroundPath.mkdir()
+        let libsToImport = !libNames.isEmpty ? libNames : libs
+        let importClauses = libsToImport.map { "import \($0)" }.joined(separator: "\n") + "\n"
+        try importClauses.write(to: playgroundPath/"Contents.swift")
+        try """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <playground version='5.0' target-platform='\(platform)'>
+            <timeline fileName='timeline.xctimeline'/>
+            </playground>
+            """.write(to: playgroundPath/"contents.xcplayground")
+    }
+
+    print("✅  created project in folder '\(projectPath.relative(to: Path.cwd))'")
+    try shellOut(to: .openFile(at: xcworkspacePath))
 }
 
