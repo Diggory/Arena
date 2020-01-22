@@ -58,7 +58,7 @@ public class SPMPlaygroundCommand {
 
     // Built-in flags
 
-    let version = Version(SPMPlaygroundVersion)
+    let version = Yaap.Version(ToolVersion)
 
     let help = Help()
 

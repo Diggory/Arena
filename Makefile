@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := release
 
 export VERSION=$(shell git describe --always --tags --dirty)
-VERSION_FILE := Sources/SPMPlayground/Version.swift
+VERSION_FILE := Sources/SPMPlayground/ReleaseVersion.swift
 
 clean:
 	swift package clean
@@ -19,7 +19,7 @@ install: release
 
 version:
 	@# run
-	@# git update-index --assume-unchanged Sources/SPMPlayground/Version.swift
+	@# git update-index --assume-unchanged Sources/SPMPlayground/ReleaseVersion.swift
 	@# to avoid tracking changes for file
 	@echo VERSION: $(VERSION)
-	@echo "public let SPMPlaygroundVersion = \"$(VERSION)\"" > $(VERSION_FILE)
+	@echo "public let ToolVersion = \"$(VERSION)\"" > $(VERSION_FILE)
