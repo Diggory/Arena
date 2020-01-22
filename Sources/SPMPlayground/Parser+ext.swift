@@ -22,7 +22,7 @@ let AllowedRevisionCharacters = CharacterSet.whitespacesAndNewlines.inverted
 
 
 extension Parser where A == Version {
-    static var version: Parser<Version> {
+    public static var version: Parser<Version> {
         zip(int, literal("."), int, literal("."), int).map { major, _, minor, _, patch in
             Version(major, minor, patch)
         }
