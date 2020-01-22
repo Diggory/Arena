@@ -18,8 +18,5 @@ install: release
 	@git checkout $(VERSION_FILE)
 
 version:
-	@# run
-	@# git update-index --assume-unchanged Sources/SPMPlayground/ReleaseVersion.swift
-	@# to avoid tracking changes for file
 	@echo VERSION: $(VERSION)
 	@echo "public let ToolVersion = \"$(VERSION)\"" > $(VERSION_FILE)
