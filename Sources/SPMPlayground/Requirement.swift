@@ -8,7 +8,7 @@
 import PackageModel
 
 
-public enum Requirement: Equatable {
+public enum Requirement: Equatable, Hashable {
     case exact(Version)
     case range(Range<Version>)
     case revision(String)
