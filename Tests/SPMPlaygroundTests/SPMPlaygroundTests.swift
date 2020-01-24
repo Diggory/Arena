@@ -181,6 +181,21 @@ final class SPMPlaygroundTests: XCTestCase {
             XCTAssertEqual(dep.packageClause, #".package(path: "/foo/bar")"#)
         }
     }
+
+    func test_codable_Dependency() throws {
+        do {
+            let dep = Dependency(url: URL(string: "https://github.com/foo/bar")!, requirement: .from("1.2.3"))
+            let data = try PropertyListEncoder().encode(dep)
+            let decoded = try PropertyListDecoder().decode(Dependency.self, from: data)
+            XCTAssertEqual(dep, decoded)
+        }
+        do {
+            let dep = Dependency(url: URL(string: "file:///tmp")!, requirement: .path)
+            let data = try PropertyListEncoder().encode(dep)
+            let decoded = try PropertyListDecoder().decode(Dependency.self, from: data)
+            XCTAssertEqual(dep, decoded)
+        }
+    }
 }
 
 

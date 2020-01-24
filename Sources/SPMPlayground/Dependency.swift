@@ -12,7 +12,7 @@ import Parser
 import Yaap
 
 
-public struct Dependency: Equatable, Hashable {
+public struct Dependency: Equatable, Hashable, Codable {
     public var url: URL
     public var requirement: Requirement
 
